@@ -31,13 +31,15 @@ MFRC522 mfrc522_1(SS_PIN_1, RST_PIN_1);  // Create MFRC522 instance
 MFRC522 mfrc522_2(SS_PIN_2, RST_PIN_2);  // Create MFRC522 instance
 MFRC522 mfrc522_3(SS_PIN_3, RST_PIN_3);  // Create MFRC522 instance
 
+MFRC522 readers[] = {mfrc522_1, mfrc522_2, mfrc522_3};
+
 const unsigned long correctId1 = 72057354;
 const unsigned long correctId2 = 71926282;
 const unsigned long correctId3 = 72188426;
 
-boolean id1Detected = false;
-boolean id2Detected = false;
-boolean id3Detected = false;
+unsigned long correctIds[] = {correctId1, correctId2, correctId3};
+boolean correctlyDetected[] = {false, false, false};
+
 
 boolean solved = false;
 
@@ -57,12 +59,10 @@ void setup() {
   Serial.begin(9600);   // Initialize serial communications with the PC
   //while (!Serial);    // Do nothing if no serial port is opened (added for Arduinos based on ATMEGA32U4)
   SPI.begin();      // Init SPI bus
-  mfrc522_1.PCD_Init();   // Init MFRC522
-  mfrc522_1.PCD_DumpVersionToSerial();  // Show details of PCD - MFRC522 Card Reader details
-  mfrc522_2.PCD_Init();   // Init MFRC522
-  mfrc522_2.PCD_DumpVersionToSerial();  // Show details of PCD - MFRC522 Card Reader details
-  mfrc522_3.PCD_Init();   // Init MFRC522
-  mfrc522_3.PCD_DumpVersionToSerial();  // Show details of PCD - MFRC522 Card Reader details
+  for (int i=0; i < 3; i++){
+      readers[i].PCD_Init();
+      readers[i].PCD_DumpVersionToSerial();
+   }
   Serial.println(F("Scan PICC to see UID, SAK, type, and data blocks..."));
 }
 
@@ -71,9 +71,9 @@ void loop() {
   {
     return;
   }
-  checkReader(mfrc522_1, 1);
-  checkReader(mfrc522_2, 2);
-  checkReader(mfrc522_3, 3);
+  for (int i=0; i < 3; i++){
+      checkReader(readers[i], i);
+  }
   delay(20);
 }
 
@@ -84,20 +84,17 @@ void checkReader(MFRC522 mfrc522, int id) {
       Serial.print("Card detected in Reader: "); Serial.print(id); Serial.print(" UID: "); Serial.println(uid);
       if (uid == correctId1 || uid == correctId2 || uid == correctId3)
       {
-        Serial.println("Correct Id detected");
-        if (uid == correctId1 && id == 1)
-        {
-          id1Detected = true;
+        for (int i=0; i <= 3; i++){
+          if (uid == correctIds[i] && id == i)
+          {
+            correctlyDetected[i] = true;
+            Serial.print("Correct Id detected for reader "); Serial.println(i);
+          }
+          
         }
-        if (uid == correctId2 && id == 2)
-        {
-          id2Detected = true;
-        }
-        if (uid == correctId3 && id == 3)
-        {
-          id3Detected = true;
-        }
-        if (id1Detected && id2Detected && id3Detected)
+        
+        
+        if (correctlyDetected[0] && correctlyDetected[1] && correctlyDetected[2])
         {
           Serial.println("Riddle solved.");
           solved = true;
@@ -126,9 +123,9 @@ void checkReader(MFRC522 mfrc522, int id) {
 
 void resetIds()
 {
-  id1Detected = false;
-  id2Detected = false;
-  id3Detected = false;
+  correctlyDetected[0] = false;
+  correctlyDetected[1] = false;
+  correctlyDetected[2] = false;
 }
 
 unsigned long getID(MFRC522 mfrc522) {
