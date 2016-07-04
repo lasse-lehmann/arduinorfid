@@ -1,6 +1,6 @@
 
 /*
-   Based on the RFID library by Miguel Balboa - https://github.com/miguelbalboa/rfid
+   Based on the RFID library by Miguel Balboa - https://github.com/miguelbalboa/rfid 
    
    Pin layout used:
    ----------------------------------
@@ -18,8 +18,8 @@
 #include <SPI.h>
 #include <MFRC522.h>
 
-#define RST_PIN_1         9          
-#define SS_PIN_1          10         
+#define RST_PIN_1        9          
+#define SS_PIN_1         10         
 
 #define RST_PIN_2        8          
 #define SS_PIN_2         5         
@@ -42,6 +42,7 @@ boolean id3Detected = false;
 boolean solved = false;
 
 #define Solved_PIN         6
+#define MAGNET_PIN         2
 #define Failed_PIN         7
 
 int delayTime = 5;
@@ -51,6 +52,8 @@ int maxfailcounter = 10;
 void setup() {
   pinMode(Failed_PIN, OUTPUT);
   pinMode(Solved_PIN, OUTPUT);
+  pinMode(MAGNET_PIN, OUTPUT);
+  digitalWrite(MAGNET_PIN, HIGH);
   Serial.begin(9600);   // Initialize serial communications with the PC
   //while (!Serial);    // Do nothing if no serial port is opened (added for Arduinos based on ATMEGA32U4)
   SPI.begin();      // Init SPI bus
@@ -98,6 +101,7 @@ void checkReader(MFRC522 mfrc522, int id) {
         {
           Serial.println("Riddle solved.");
           solved = true;
+          digitalWrite(MAGNET_PIN, LOW); //turn off magnet, open box
           while (true)
           {
             digitalWrite(Solved_PIN, HIGH);
