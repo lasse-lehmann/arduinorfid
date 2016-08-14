@@ -48,9 +48,9 @@ boolean solved = false;
 #define MAGNET_PIN         2
 #define Failed_PIN         7
 
-int delayTime = 5;
+int delayTime = 2;
 int failcounter = 0;
-int maxfailcounter = 10;
+int maxfailcounter = 5;
 
 void setup() {
   pinMode(Failed_PIN, OUTPUT);
@@ -72,62 +72,64 @@ void loop() {
   {
     return;
   }
-  for (int i = 0; i < 3; i++) 
+  for (int i = 0; i < 3; i++)
   {
     checkReader(readers[i], i);
-    delay(100);  
+    delay(100);
   }
 }
 
 
-void checkReader(MFRC522 mfrc522, int id) {
-  //if (mfrc522.PICC_IsNewCardPresent()) {
-    unsigned long uid = getID(mfrc522);   
-    if (uid != -1)
+void checkReader(MFRC522 mfrc522, int id)
+{
+  unsigned long uid = getID(mfrc522);
+  if (uid == -1)
+  {
+    Serial.print("No Card found on reader "); Serial.println(id);
+    return;
+  }
+  bool anythingCorrect = false;
+  bool newCard = false;
+  if (uid != lastIds[id])
+  {
+    Serial.print("New card detected in Reader: "); Serial.print(id); Serial.print(" UID: "); Serial.println(uid);
+    lastIds[id] = uid;
+    newCard = true;
+  }
+  else
+  {
+    Serial.print("Card detected in Reader: "); Serial.print(id); Serial.print(" UID: "); Serial.print(uid); Serial.println(" is known already.");
+  }
+
+  if (uid == correctIds[id])
+  {
+    correctlyDetected[id] = true;
+    if(newCard)
     {
-      Serial.print("No Card found on reader "); Serial.println(id);
-      return;
-    }
-    bool anythingCorrect = false;
-    bool newCard = false;
-    if(uid != lastIds[id])
-    {
-      Serial.print("New card detected in Reader: "); Serial.print(id); Serial.print(" UID: "); Serial.println(uid);
-      lastIds[id] = uid;
-      newCard = true;
-    }
-    else
-    {
-      Serial.print("Card detected in Reader: "); Serial.print(id); Serial.print(" UID: "); Serial.print(uid); Serial.println(" is known already.");
-    }
-    
-    if (uid == correctIds[id])
-    {
-      correctlyDetected[id] = true;
       blinkSolvedLed();
-      Serial.print("Correct Id detected for reader "); Serial.println(id);
-      anythingCorrect = true;
     }
-    if (correctlyDetected[0] && correctlyDetected[1] && correctlyDetected[2])
+    Serial.print("Correct Id detected for reader "); Serial.println(id);
+    anythingCorrect = true;
+  }
+  if (correctlyDetected[0] && correctlyDetected[1] && correctlyDetected[2])
+  {
+    Serial.println("Riddle solved.");
+    solved = true;
+    digitalWrite(MAGNET_PIN, LOW); //turn off magnet, open box
+    while (true)
     {
-      Serial.println("Riddle solved.");
-      solved = true;
-      digitalWrite(MAGNET_PIN, LOW); //turn off magnet, open box
-      while (true)
-      {
-        blinkSolvedLed();
-      }
+      blinkSolvedLed();
     }
-    if (!anythingCorrect && newCard)
-    {
-      resetIds();
-      failcounter++;
-      Serial.print("Failed: "); Serial.println(failcounter);
-      digitalWrite(Failed_PIN, HIGH);
-      delay(delayTime * 1000 * min(failcounter, maxfailcounter));
-      digitalWrite(Failed_PIN, LOW);
-    }
-  //}
+  }
+  if (!anythingCorrect && newCard)
+  {
+    resetIds();
+    failcounter++;
+    Serial.print("Failed: "); Serial.println(failcounter);
+    digitalWrite(Failed_PIN, HIGH);
+    delay(delayTime * 1000 * min(failcounter, maxfailcounter));
+    digitalWrite(Failed_PIN, LOW);
+  }
 }
 
 void blinkSolvedLed()
@@ -146,6 +148,9 @@ void resetIds()
 }
 
 unsigned long getID(MFRC522 mfrc522) {
+  byte bufferATQA[2];
+  byte bufferSize = sizeof(bufferATQA);
+  mfrc522.PICC_WakeupA(bufferATQA, &bufferSize);
   if ( ! mfrc522.PICC_ReadCardSerial()) { // no PICC placed, return
     return -1;
   }
