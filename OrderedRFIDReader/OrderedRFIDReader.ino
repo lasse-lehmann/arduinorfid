@@ -1,31 +1,31 @@
 
 /*
-   Based on the RFID library by Miguel Balboa - https://github.com/miguelbalboa/rfid 
-   
+   Based on the RFID library by Miguel Balboa - https://github.com/miguelbalboa/rfid
+
    Pin layout used:
    ----------------------------------
-               MFRC522      Arduino       
-               Reader/PCD   Uno           
-   Signal      Pin          Pin           
+               MFRC522      Arduino
+               Reader/PCD   Uno
+   Signal      Pin          Pin
    ----------------------------------
-   RST/Reset   RST          see below    
+   RST/Reset   RST          see below
    SPI SS      SDA(SS)      see below
-   SPI MOSI    MOSI         11 
-   SPI MISO    MISO         12 
-   SPI SCK     SCK          13 
+   SPI MOSI    MOSI         11
+   SPI MISO    MISO         12
+   SPI SCK     SCK          13
 */
 
 #include <SPI.h>
 #include <MFRC522.h>
 
-#define RST_PIN_1        9          
-#define SS_PIN_1         10         
+#define RST_PIN_1        9
+#define SS_PIN_1         10
 
-#define RST_PIN_2        8          
-#define SS_PIN_2         5         
+#define RST_PIN_2        8
+#define SS_PIN_2         5
 
-#define RST_PIN_3        4         
-#define SS_PIN_3         3        
+#define RST_PIN_3        4
+#define SS_PIN_3         3
 
 MFRC522 mfrc522_1(SS_PIN_1, RST_PIN_1);  // Create MFRC522 instance
 MFRC522 mfrc522_2(SS_PIN_2, RST_PIN_2);  // Create MFRC522 instance
@@ -38,6 +38,7 @@ const unsigned long correctId2 = 71926282;
 const unsigned long correctId3 = 72188426;
 
 unsigned long correctIds[] = {correctId1, correctId2, correctId3};
+unsigned long lastIds[3];
 boolean correctlyDetected[] = {false, false, false};
 
 
@@ -59,10 +60,10 @@ void setup() {
   Serial.begin(9600);   // Initialize serial communications with the PC
   //while (!Serial);    // Do nothing if no serial port is opened (added for Arduinos based on ATMEGA32U4)
   SPI.begin();      // Init SPI bus
-  for (int i=0; i < 3; i++){
-      readers[i].PCD_Init();
-      readers[i].PCD_DumpVersionToSerial();
-   }
+  for (int i = 0; i < 3; i++) {
+    readers[i].PCD_Init();
+    readers[i].PCD_DumpVersionToSerial();
+  }
   Serial.println(F("Scan PICC to see UID, SAK, type, and data blocks..."));
 }
 
@@ -71,8 +72,8 @@ void loop() {
   {
     return;
   }
-  for (int i=0; i < 3; i++){
-      checkReader(readers[i], i);
+  for (int i = 0; i < 3; i++) {
+    checkReader(readers[i], i);
   }
   delay(20);
 }
@@ -80,35 +81,29 @@ void loop() {
 void checkReader(MFRC522 mfrc522, int id) {
   if (mfrc522.PICC_IsNewCardPresent()) {
     unsigned long uid = getID(mfrc522);
+    bool anythingCorrect = false;
     if (uid != -1) {
       Serial.print("Card detected in Reader: "); Serial.print(id); Serial.print(" UID: "); Serial.println(uid);
-      if (uid == correctId1 || uid == correctId2 || uid == correctId3)
-      {
-        for (int i=0; i <= 3; i++){
-          if (uid == correctIds[i] && id == i)
-          {
-            correctlyDetected[i] = true;
-            Serial.print("Correct Id detected for reader "); Serial.println(i);
-          }
-          
-        }
-        
-        
-        if (correctlyDetected[0] && correctlyDetected[1] && correctlyDetected[2])
+      for (int i = 0; i <= 3; i++) {
+        if (uid == correctIds[i] && id == i)
         {
-          Serial.println("Riddle solved.");
-          solved = true;
-          digitalWrite(MAGNET_PIN, LOW); //turn off magnet, open box
-          while (true)
-          {
-            digitalWrite(Solved_PIN, HIGH);
-            delay(500);
-            digitalWrite(Solved_PIN, LOW);
-            delay(500);
-          }
+          correctlyDetected[i] = true;
+          blinkSolvedLed();
+          Serial.print("Correct Id detected for reader "); Serial.println(i);
+          anythingCorrect = true;
         }
       }
-      else
+      if (correctlyDetected[0] && correctlyDetected[1] && correctlyDetected[2])
+      {
+        Serial.println("Riddle solved.");
+        solved = true;
+        digitalWrite(MAGNET_PIN, LOW); //turn off magnet, open box
+        while (true)
+        {
+          blinkSolvedLed();
+        }
+      }
+      if (!anythingCorrect)
       {
         resetIds();
         failcounter++;
@@ -119,6 +114,14 @@ void checkReader(MFRC522 mfrc522, int id) {
       }
     }
   }
+}
+
+void blinkSolvedLed()
+{
+  digitalWrite(Solved_PIN, HIGH);
+  delay(500);
+  digitalWrite(Solved_PIN, LOW);
+  delay(500);
 }
 
 void resetIds()
