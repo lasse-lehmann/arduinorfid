@@ -72,48 +72,62 @@ void loop() {
   {
     return;
   }
-  for (int i = 0; i < 3; i++) {
+  for (int i = 0; i < 3; i++) 
+  {
     checkReader(readers[i], i);
+    delay(100);  
   }
-  delay(20);
 }
 
+
 void checkReader(MFRC522 mfrc522, int id) {
-  if (mfrc522.PICC_IsNewCardPresent()) {
-    unsigned long uid = getID(mfrc522);
+  //if (mfrc522.PICC_IsNewCardPresent()) {
+    unsigned long uid = getID(mfrc522);   
+    if (uid != -1)
+    {
+      Serial.print("No Card found on reader "); Serial.println(id);
+      return;
+    }
     bool anythingCorrect = false;
-    if (uid != -1) {
-      Serial.print("Card detected in Reader: "); Serial.print(id); Serial.print(" UID: "); Serial.println(uid);
-      for (int i = 0; i <= 3; i++) {
-        if (uid == correctIds[i] && id == i)
-        {
-          correctlyDetected[i] = true;
-          blinkSolvedLed();
-          Serial.print("Correct Id detected for reader "); Serial.println(i);
-          anythingCorrect = true;
-        }
-      }
-      if (correctlyDetected[0] && correctlyDetected[1] && correctlyDetected[2])
+    bool newCard = false;
+    if(uid != lastIds[id])
+    {
+      Serial.print("New card detected in Reader: "); Serial.print(id); Serial.print(" UID: "); Serial.println(uid);
+      lastIds[id] = uid;
+      newCard = true;
+    }
+    else
+    {
+      Serial.print("Card detected in Reader: "); Serial.print(id); Serial.print(" UID: "); Serial.print(uid); Serial.println(" is known already.");
+    }
+    
+    if (uid == correctIds[id])
+    {
+      correctlyDetected[id] = true;
+      blinkSolvedLed();
+      Serial.print("Correct Id detected for reader "); Serial.println(id);
+      anythingCorrect = true;
+    }
+    if (correctlyDetected[0] && correctlyDetected[1] && correctlyDetected[2])
+    {
+      Serial.println("Riddle solved.");
+      solved = true;
+      digitalWrite(MAGNET_PIN, LOW); //turn off magnet, open box
+      while (true)
       {
-        Serial.println("Riddle solved.");
-        solved = true;
-        digitalWrite(MAGNET_PIN, LOW); //turn off magnet, open box
-        while (true)
-        {
-          blinkSolvedLed();
-        }
-      }
-      if (!anythingCorrect)
-      {
-        resetIds();
-        failcounter++;
-        Serial.print("Failed: "); Serial.println(failcounter);
-        digitalWrite(Failed_PIN, HIGH);
-        delay(delayTime * 1000 * min(failcounter, maxfailcounter));
-        digitalWrite(Failed_PIN, LOW);
+        blinkSolvedLed();
       }
     }
-  }
+    if (!anythingCorrect && newCard)
+    {
+      resetIds();
+      failcounter++;
+      Serial.print("Failed: "); Serial.println(failcounter);
+      digitalWrite(Failed_PIN, HIGH);
+      delay(delayTime * 1000 * min(failcounter, maxfailcounter));
+      digitalWrite(Failed_PIN, LOW);
+    }
+  //}
 }
 
 void blinkSolvedLed()
